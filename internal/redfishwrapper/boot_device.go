@@ -55,11 +55,24 @@ func (c *Client) SystemBootDeviceSet(ctx context.Context, bootDevice string, set
 			boot.BootSourceOverrideEnabled = rf.OnceBootSourceOverrideEnabled
 		}
 
+		var bootMode rf.BootSourceOverrideMode
 		if efiBoot {
-			boot.BootSourceOverrideMode = rf.UEFIBootSourceOverrideMode
+			bootMode = rf.UEFIBootSourceOverrideMode
 		} else {
-			boot.BootSourceOverrideMode = rf.LegacyBootSourceOverrideMode
+			bootMode = rf.LegacyBootSourceOverrideMode
 		}
+		// HPE iLO treats BootSourceOverrideMode as read-only and errors even if
+		// it is set to the existing value, so only attempt to set it if
+		// required.
+		if boot.BootSourceOverrideMode != bootMode {
+			boot.BootSourceOverrideMode = bootMode
+		} else {
+			boot.BootSourceOverrideMode = ""
+		}
+		// HPE iLO will error if UefiTargetBootSourceOverride is set when
+		// BootSourceOverrideTarget isn't UefiTarget. This function doesn't ever
+		// set UefiTarget anyway, so clear this.
+		boot.UefiTargetBootSourceOverride = ""
 
 		err = system.SetBoot(boot)
 		if err != nil {
